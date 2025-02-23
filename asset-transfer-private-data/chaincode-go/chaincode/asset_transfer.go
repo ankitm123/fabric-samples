@@ -13,8 +13,8 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/hyperledger/fabric-chaincode-go/shim"
-	"github.com/hyperledger/fabric-contract-api-go/contractapi"
+	"github.com/hyperledger/fabric-chaincode-go/v2/shim"
+	"github.com/hyperledger/fabric-contract-api-go/v2/contractapi"
 )
 
 const assetCollection = "assetCollection"
@@ -167,7 +167,7 @@ func (s *SmartContract) CreateAsset(ctx contractapi.TransactionContextInterface)
 
 // AgreeToTransfer is used by the potential buyer of the asset to agree to the
 // asset value. The agreed to appraisal value is stored in the buying orgs
-// org specifc collection, while the the buyer client ID is stored in the asset collection
+// org specifc collection, while the buyer client ID is stored in the asset collection
 // using a composite key
 func (s *SmartContract) AgreeToTransfer(ctx contractapi.TransactionContextInterface) error {
 

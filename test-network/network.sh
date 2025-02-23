@@ -70,16 +70,16 @@ function checkPrereqs() {
     errorln "https://hyperledger-fabric.readthedocs.io/en/latest/install.html"
     exit 1
   fi
-  # use the fabric tools container to see if the samples and binaries match your
+  # use the fabric peer container to see if the samples and binaries match your
   # docker images
   LOCAL_VERSION=$(peer version | sed -ne 's/^ Version: //p')
-  DOCKER_IMAGE_VERSION=$(${CONTAINER_CLI} run --rm hyperledger/fabric-tools:latest peer version | sed -ne 's/^ Version: //p')
+  DOCKER_IMAGE_VERSION=$(${CONTAINER_CLI} run --rm hyperledger/fabric-peer:latest peer version | sed -ne 's/^ Version: //p')
 
   infoln "LOCAL_VERSION=$LOCAL_VERSION"
   infoln "DOCKER_IMAGE_VERSION=$DOCKER_IMAGE_VERSION"
 
   if [ "$LOCAL_VERSION" != "$DOCKER_IMAGE_VERSION" ]; then
-    warnln "Local fabric binaries and docker images are out of  sync. This may cause problems."
+    warnln "Local fabric binaries and docker images are out of sync. This may cause problems."
   fi
 
   for UNSUPPORTED_VERSION in $NONWORKING_VERSIONS; do
@@ -226,6 +226,7 @@ function createOrgs() {
 
     . organizations/fabric-ca/registerEnroll.sh
 
+    # Make sure CA files have been created
     while :
     do
       if [ ! -f "organizations/fabric-ca/org1/tls-cert.pem" ]; then
@@ -233,6 +234,20 @@ function createOrgs() {
       else
         break
       fi
+    done
+
+    # Make sure CA service is initialized and can accept requests before making register and enroll calls
+    export FABRIC_CA_CLIENT_HOME=${PWD}/organizations/peerOrganizations/org1.example.com/
+    COUNTER=0
+    rc=1
+    while [[ $rc -ne 0 && $COUNTER -lt $MAX_RETRY ]]; do
+      sleep 1
+      set -x
+      fabric-ca-client getcainfo -u https://admin:adminpw@localhost:7054 --caname ca-org1 --tls.certfiles "${PWD}/organizations/fabric-ca/org1/ca-cert.pem"
+      res=$?
+    { set +x; } 2>/dev/null
+    rc=$res  # Update rc
+    COUNTER=$((COUNTER + 1))
     done
 
     infoln "Creating Org1 Identities"
@@ -618,11 +633,6 @@ while [[ $# -ge 1 ]] ; do
   esac
   shift
 done
-
-## Check if user attempts to use BFT orderer and CA together
-if [[ $BFT -eq 1 && "$CRYPTO" == "Certificate Authorities" ]]; then
-  fatalln "This sample does not yet support the use of consensus type BFT and CA together."
-fi
 
 if [ $BFT -eq 1 ]; then
   export FABRIC_CFG_PATH=${PWD}/bft-config
